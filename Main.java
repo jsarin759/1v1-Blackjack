@@ -1,0 +1,264 @@
+import java.util.Scanner;
+import java.util.ArrayList;
+
+public class Main
+{
+  public static void hit(Deck d, Player p, int n)
+  {
+    Card[] temp = d.removeCard(n);
+    for (int i = 0; i < temp.length; i++)
+    {
+      p.addCard(temp[i], p.getHand().size());
+      if(p.hasBust() && p.getAcesIndices().size() > 0)
+        p.switchAce();
+    }
+  }
+
+  public static void splitHands(User p, ArrayList<User> u, int i)
+  {
+    User temp = new User(p.getName(), p.getBalance(), p.getBet());
+    temp.addCard(p.removeCard(p.getHand().size() - 1), 0);
+    u.add(i, temp);
+  }
+
+  public static void doubleDown(Deck d, User u)
+  {
+    u.setBet(u.getBet() * 2);
+    System.out.printf("\nYour bet for this round has doubled to $%.2f\n", u.getBet());
+    hit(d, u, 1);
+    u.displayHandandValue();
+  }
+
+  public static void determineWinner(User u, Player d)
+  {
+    if (u.hasBlackjack())
+    {
+      if (d.hasBlackjack())
+        System.out.println("It's a push (tie).");
+      else
+      {
+        System.out.println("Congratulations, you win!");
+        u.updateBalance(u.getBet() * 1.5);
+      }
+    }
+    else
+    {
+      if (u.getValue() <= 21)
+      {
+        if (u.getValue() > d.getValue() || d.hasBust())
+        {
+          System.out.println("Congratulations, you win!");
+          u.updateBalance(u.getBet());
+        }
+          else if (u.getValue() == d.getValue())
+            System.out.println("It's a push (tie).");
+        else if (d.hasBlackjack() || d.getValue() <= 21)
+        {
+          System.out.println("Unfortunately, you lost.");
+          u.updateBalance(-1 * u.getBet());
+        } 
+      }
+      else
+      {
+        System.out.println("Unfortunately, you lost.");
+        u.updateBalance(-1 * u.getBet());
+      }
+    }
+  }
+  
+  public static void main(String[] args)
+  {
+    Scanner scan = new Scanner(System.in);
+    
+    Deck deck = new Deck();
+    deck.shuffle();
+
+    boolean wantContinue = true;
+    System.out.println("Enter your name: ");
+    String name = scan.nextLine();  
+    System.out.println("Hello " + name + "! Welcome to 1v1 Blackjack, where you will be playing against me, the dealer. Before we begin, we need to know how much your balance is and how much you are willing to bet this round.\n");
+    System.out.println("What is your balance?");
+    double bal = scan.nextDouble();
+    System.out.println("What is your bet?");
+    double bet = scan.nextDouble();
+    while (bet > bal)
+    {
+      System.out.println("You bet must be less than or equal to your balance. Try again.");
+      bet = scan.nextDouble();
+    }
+    double initialBal = bal;
+
+    User user = new User(name, bal, bet);
+    Player dealer = new Player();
+
+    ArrayList<User> allHands = new ArrayList<User>();
+   
+    do{  
+      scan.nextLine(); // Removing this prevents the code below from running (If it ain't broken, don't fix it)
+      System.out.println("\nWould you like to increase balance?");
+      String a = scan.nextLine();
+      if (a.toLowerCase().equals("y") || a.toLowerCase().equals("yes"))
+      {
+        System.out.println("By how much?");
+        double b = scan.nextDouble();
+        user.updateBalance(b);
+      }
+      System.out.println("What is your bet for this round?");
+      bet = scan.nextDouble();
+      while (bet > bal)
+      {
+        System.out.println("You bet must be less than or equal to your balance. Try again.");
+        bet = scan.nextDouble();
+      }
+      user.setBet(bet);
+
+      hit(deck, user, 2);
+      hit(deck, dealer, 2);
+      allHands.add(user);
+      
+      System.out.println("\nDealer's hand: [" + dealer.getHand().get(0) + ", **********]");
+      System.out.println("Dealer's hand's value: ###");
+
+      user.displayHandandValue();
+  
+      System.out.printf("\nYour balance: $%.2f", user.getBalance());
+      System.out.printf("\nYour bet for this round: $%.2f", user.getBet());
+            
+      if(user.getValue() == 21)
+        System.out.println("\n\nYou got blackjack!");
+      else
+      {
+        scan.nextLine();
+        ArrayList<String> action = new ArrayList<String>();
+        String option = "";
+        System.out.println("\n\nDo you want to hit, stand, double down, or split hands? Make sure to type the full words or phrase when answering.");
+        String ans = scan.nextLine();
+        if (ans.toLowerCase().equals("split hands"))
+        {
+          for (int i = 0; i < allHands.size(); i++)
+          {
+            if (allHands.get(i).getHand().size() == 2 && allHands.get(i).getHand().get(0).getRank().equals(allHands.get(i).getHand().get(1).getRank()))
+            {
+              System.out.println("\nDo you want to split the hand of " + allHands.get(i).getHand() + " ?");
+              String test = scan.nextLine();
+              if(test.toLowerCase().equals("yes") || test.toLowerCase().equals("y"))
+              {
+                splitHands(allHands.get(i), allHands, i + 1);
+                hit(deck, allHands.get(i), 1);
+                hit(deck, allHands.get(i + 1), 1);
+                System.out.println("\nHere are your current hands.");
+                for (int j = 0; j < allHands.size(); j++)
+                {
+                  allHands.get(j).displayHandandValue();
+                }
+                i--;
+              }
+              else
+              {
+                System.out.println("Do you want to hit, stand, or double down this hand?");
+                test = scan.nextLine();
+                action.add(test.toLowerCase());
+              }
+            }
+            else
+            {
+              System.out.println("\nYou can't split the hand of " + allHands.get(i).getHand() + ". Do you instead want to hit, stand, or double down?");
+              option = scan.nextLine();
+              action.add(option.toLowerCase());
+            }
+          }
+        } 
+        else if (ans.toLowerCase().equals("hit") || ans.toLowerCase().equals("stand") || ans.toLowerCase().equals("double down"))
+        {
+          action.add(ans.toLowerCase());
+        }
+        
+        for (int i = 0; i < allHands.size(); i++)
+        {
+          User u = allHands.get(i);
+          String choice = action.get(i);
+          if (choice.toLowerCase().equals("double down"))
+          {
+            doubleDown(deck, u); 
+          }
+          while (choice.toLowerCase().equals("hit"))
+          {
+            hit(deck, u, 1);
+            u.displayHandandValue();          
+            if(!u.hasBust())
+            {
+              System.out.println("\nHit or Stand?");
+              choice = scan.nextLine();
+            }
+            else
+              break;
+          }
+        }
+        action.clear();
+      }
+      
+      System.out.println("\nNow it is my (the dealer's) turn.\n");
+      dealer.displayHandandValue();
+      
+      while(dealer.getValue() < 17)
+      {
+        System.out.println("\nPress enter to continue");
+        scan.nextLine();
+        hit(deck, dealer, 1);
+        dealer.displayHandandValue();
+      }
+      System.out.println();
+
+      if(allHands.size() > 1)
+      {
+        for (int i = 0; i < allHands.size(); i++)
+        {
+          System.out.print("For Hand #" + (i + 1) + ": ");
+          determineWinner(allHands.get(i), dealer);
+        }
+      }
+      else
+      {
+        determineWinner(user, dealer);
+      }
+      
+      System.out.printf("Your new balance is $%.2f", user.getBalance());
+
+      for (User u : allHands)
+      {
+        deck.returnHandtoDeck(u.getHand());
+        u.reset();
+      }
+      deck.returnHandtoDeck(dealer.getHand());
+      dealer.reset();
+      allHands.clear();
+      deck.shuffle();
+
+      System.out.println("\n\nWould you like to continue playing?");
+      String response = scan.nextLine();
+      if (!(response.toLowerCase().equals("y") || response.toLowerCase().equals("yes")))
+      {
+        wantContinue = false;  
+      }
+        
+    } while(wantContinue);
+
+    double percentChange = ((user.getBalance() - initialBal) / initialBal) * 100;
+    if (percentChange < 0)
+    {
+      System.out.print("\nYour balance decreased by " + percentChange + "% to $");
+      System.out.printf("%.2f. Better luck next time.", user.getBalance());  
+    }    
+    else if (percentChange > 0)
+    {
+      System.out.print("\nYour balance increased by " + percentChange + "% to $");
+      System.out.printf("%.2f. Good job!", user.getBalance());  
+    }
+    else
+    {
+      System.out.print("\nYour balance did not change. At least you didn't lose any money.");
+    }
+
+    scan.close();
+  }
+}
